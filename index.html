@@ -3,323 +3,590 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PYTHERA Detection - Hybrid CNN-Transformer Object Detection Model</title>
+    <title>Pythera Detection - Hybrid CNN-Transformer Object Detection Model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VNM+Sans+Display:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* CSS Bổ sung cho Biểu đồ tương tác (Giữ phong cách Glassmorphism) */
+        .chart-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .chart-wrapper {
+            background: var(--glass-base);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+        .chart-title {
+            color: var(--text-primary);
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+        .chart-box {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            position: relative;
+            padding-left: 100px;
+            padding-bottom: 25px;
+            border-left: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .bar-group {
+            display: flex;
+            align-items: center;
+            height: 30px;
+            position: relative;
+        }
+        .y-label {
+            position: absolute;
+            left: -100px;
+            width: 90px;
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .bar-container {
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            height: 100%;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .bar {
+            height: 100%;
+            width: 0;
+            background: var(--blue-400);
+            box-shadow: 0 0 15px var(--blue-400);
+            transition: width 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67), filter 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .bar.highlight {
+            background: linear-gradient(90deg, var(--cyan-400), var(--blue-400));
+            box-shadow: 0 0 20px var(--cyan-400);
+        }
+        .bar-container:hover .bar {
+            filter: brightness(1.3);
+        }
+        .x-axis-labels {
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+        }
+        .axis-unit {
+            text-align: right;
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            margin-top: 5px;
+        }
+        .tooltip-custom {
+            position: absolute;
+            background: rgba(10, 10, 15, 0.95);
+            border: 1px solid var(--blue-400);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 9999;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* --- ĐỒNG BỘ MÀU TRANG INTRODUCTION (HERO SECTION) --- */
+        .hero-section {
+            background: transparent !important; /* Loại bỏ nền mặc định nếu có */
+            padding: 4rem 2rem;
+        }
+        .hero-glass {
+            background: var(--glass-base) !important;
+            border: 1px solid var(--glass-border) !important;
+            backdrop-filter: blur(15px);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .hero-title {
+            color: var(--text-primary) !important;
+            text-shadow: 0 0 20px rgba(0, 242, 255, 0.3); /* Hiệu ứng phát sáng nhẹ */
+        }
+        .hero-subtitle {
+            color: var(--text-secondary) !important;
+        }
+        .hero-grid-pattern {
+            opacity: 0.15; /* Làm mờ lưới để hài hòa với background chung */
+            background-image: radial-gradient(var(--blue-400) 0.5px, transparent 0.5px);
+            background-size: 30px 30px;
+        }
+    </style>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <h1 class="project-title">PYTHERA Detection</h1>
-            <p class="project-subtitle">Hybrid CNN-Transformer Object Detection Model</p>
-            <div class="header-badges">
-                <span class="badge">Computer Vision</span>
-                <span class="badge">Object Detection</span>
-                <span class="badge">Deep Learning</span>
+    <canvas id="bg-canvas"></canvas>
+    <div class="bg-overlay"></div>
+    
+    <div class="abstract-shape" style="width: 300px; height: 300px; top: 10%; left: 5%; animation-delay: 0s;"></div>
+    <div class="abstract-shape" style="width: 200px; height: 200px; top: 60%; right: 10%; animation-delay: 5s;"></div>
+    <div class="abstract-shape" style="width: 250px; height: 250px; bottom: 20%; left: 15%; animation-delay: 10s;"></div>
+    
+    <aside class="sidebar">
+        <div class="sidebar-content">
+            <div class="logo">
+                <h1>Pythera</h1>
+                <span class="tagline">Detection</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#introduction" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Introduction</span>
+                </a>
+                <a href="#abstract" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="#architecture" class="nav-item">
+                    <i class="fas fa-sitemap"></i>
+                    <span>Architecture</span>
+                </a>
+                <a href="#dataset" class="nav-item">
+                    <i class="fas fa-database"></i>
+                    <span>Datasets</span>
+                </a>
+                <a href="#results" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Results</span>
+                </a>
+                <a href="#demo" class="nav-item">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Demo</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="contact-info">
+                    <a href="mailto:your-email@example.com" class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <span>minhnn17.work@gmail.com</span>
+                    </a>
+                    <a href="tel:+84869692770" class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <span>+84 869 692 770</span>
+                    </a>
+                    <a href="https://www.linkedin.com/in/ngocminhnguyen173/" target="_blank" class="contact-item">
+                        <i class="fab fa-linkedin"></i>
+                        <span>LinkedIn</span>
+                    </a>
+                </div>
             </div>
         </div>
-    </header>
+    </aside>
 
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="container">
-            <ul class="nav-menu">
-                <li><a href="#abstract">Abstract</a></li>
-                <li><a href="#video-demo">Video Demo</a></li>
-                <li><a href="#dataset">Dataset</a></li>
-                <li><a href="#model">Model</a></li>
-                <li><a href="#result">Result</a></li>
-            </ul>
-        </div>
-    </nav>
+    <div class="main-wrapper">
+        <section id="introduction" class="hero-section">
+            <div class="hero-grid-pattern"></div>
+            
+            <div class="hero-content-wrapper">
+                <h1 class="hero-title-massive">Pythera Detection</h1>
+                
+                <p class="hero-subtitle-clean">
+                    Hybrid model offers a balance between accuracy and computational cost.
+                </p>
+            </div>
+        </section>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
-            <!-- Abstract Section -->
-            <section id="abstract" class="section">
-                <h2 class="section-title">Abstract</h2>
+        <section id="abstract" class="content-section">
+            <div class="section-glass">
+                <h2 class="section-title">Project Overview</h2>
                 <div class="section-content">
-                    <p class="lead">
-                        PYTHERA Detection is a hybrid object detection model that combines CNN backbone and Transformer architecture, 
-                        designed to address the inference speed issues of traditional detection models like YOLO.
+                    <p class="intro-paragraph">
+                        This project focuses on developing an efficient object detection model in computer vision, addressing the limitations of modern detectors like YOLO and Transformer-based models in terms of computational cost and labeled data.
                     </p>
                     
-                    <div class="problem-solution">
-                        <div class="problem-box">
-                            <h3><i class="fas fa-exclamation-triangle"></i> Problem</h3>
-                            <p>
-                                Traditional detection models like YOLO have an NMS (Non-Maximum Suppression) layer 
-                                that makes inference slow, making them unsuitable for real-time applications.
-                            </p>
+                    <div class="dual-cards">
+                        <div class="card-glass problem-card">
+                            <div class="card-header">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <h3>Problem</h3>
+                            </div>
+                            <p>State-of-the-art object detection models are constrained by hardware limitations, NMS induced latency, and inefficiency in multi-task pipelines, while purely CNN or Transformer-based architectures remain insufficiently optimized for practical deployment.</p>
                         </div>
                         
-                        <div class="solution-box">
-                            <h3><i class="fas fa-lightbulb"></i> Solution</h3>
-                            <p>
-                                Combining a hybrid architecture between YOLO and DETR, using the query method in transformer 
-                                to eliminate the NMS layer, maintaining performance while significantly improving inference speed.
-                            </p>
+                        <div class="card-glass solution-card">
+                            <div class="card-header">
+                                <i class="fas fa-lightbulb"></i>
+                                <h3>Solution</h3>
+                            </div>
+                            <p>A hybrid architecture is proposed, combining the YOLOv9 backbone with a Transformer-based decoder to enable end-to-end object detection without NMS, thereby reducing inference latency and improving efficiency under resource constrained settings.</p>
                         </div>
                     </div>
-
                     <div class="comparison-section">
-                        <h3>Traditional YOLO vs DETR Comparison</h3>
-                        <div class="image-container">
-                            <img src="image/Adavantage_between_one_and_two_stages.png" 
+                        <h3 class="subsection-title">Traditional YOLO vs DETR Comparison</h3>
+                        
+                        <div class="media-container"> <img src="image/one2many.png" 
                                  alt="Advantage between one and two stages" 
-                                 class="section-image">
+                                 class="media-image"> </div>
+                    
+                        <div class="media-container">
+                            <img src="image/one2branch.png" 
+                                 alt="Advantage between one and two stages" 
+                                 class="media-image">
                         </div>
                         <p class="image-caption">
-                            Traditional YOLO must go through the NMS layer, while DETR only requires queries, resulting in significantly improved speed.
+                            Traditional YOLO must go through the NMS layer, while DETR only requires queries.
                         </p>
                     </div>
-
-                    <!-- Video Demo -->
-                    <div id="video-demo" class="video-demo">
-                        <h3><i class="fab fa-youtube"></i> Video Demo</h3>
-                        
-                        <!-- Video 1: Inference Demo -->
-                        <div class="video-item">
-                            <h4>Inference Pythera Detection</h4>
-                            <div class="video-container">
-                                <iframe
-                                    src="https://www.youtube.com/embed/AkgIbOkYNL8"
-                                    title="Inference for Pythera Detection"
-                                    frameborder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    referrerpolicy="strict-origin-when-cross-origin"
-                                    allowfullscreen>
-                                </iframe>
-                            </div>
-                        </div>
-
-                        <!-- Video 2: FPS Benchmark -->
-                        <div class="video-item">
-                            <h4>Pythera Detection, YOLOv9, YOLOv12 FPS Benchmark</h4>
-                            <div class="video-container">
-                                <iframe
-                                    src="https://www.youtube.com/embed/3jWkgh7KHZk"
-                                    title="Pythera_detection_vs_Yolov9_12"
-                                    frameborder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    referrerpolicy="strict-origin-when-cross-origin"
-                                    allowfullscreen>
-                                </iframe>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- Dataset Section -->
-            <section id="dataset" class="section">
-                <h2 class="section-title">Dataset</h2>
-                <div class="section-content">
-                    <div class="dataset-grid">
-                        <div class="dataset-card">
-                            <h3>COCO Dataset</h3>
-                            <p>
-                                Used for training and initial performance evaluation of the model 
-                                through the mAP50 metric. This dataset is the industry standard for object detection.
-                            </p>
-                            <div class="image-container">
-                                <img src="image/Cocodataset.png" 
-                                     alt="Evaluation on COCO dataset" 
-                                     class="section-image">
-                            </div>
-                        </div>
-
-                        <div class="dataset-card">
-                            <h3>Human Crowded Dataset</h3>
-                            <p>
-                                A custom-built dataset to evaluate performance on the human detection problem. 
-                                This dataset has the following characteristics:
-                            </p>
-                            <ul class="dataset-features">
-                                <li>Bounding boxes with significant overlap</li>
-                                <li>Bounding boxes misaligned from the original objects</li>
-                                <li>Goal: evaluate performance for human detection tasks</li>
-                            </ul>
-                            <div class="image-container">
-                                <img src="image/humancrowded_dataset.png" 
-                                     alt="Human crowded dataset" 
-                                     class="section-image">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Model Section -->
-            <section id="model" class="section">
+        <section id="architecture" class="content-section">
+            <div class="section-glass">
                 <h2 class="section-title">Model Architecture</h2>
+                The hybrid YOLOv9–Transformer architecture preserves the original YOLOv9 backbone for feature extraction, while replacing the conventional YOLO detection head with a Transformer-based decoder inspired by RT-DETR, enabling end-to-end object detection without the need for NMS.
                 <div class="section-content">
-                    <div class="architecture-description">
-                        <p>
-                            The PYTHERA Detection architecture combines the CNN backbone from YOLOv9 with the transformer decoder from DETR. 
-                            This allows the model to:
+                    <div class="media-container large">
+                        <img src="image/Yolov9_detrdecoder.png" class="media-image">
+                        <p class="image-caption">
+                            Hybrid YOLOv9-Transformer Architecture
                         </p>
-                        <ul class="feature-list">
-                            <li><i class="fas fa-check-circle"></i> Maintain the high performance of YOLOv9</li>
-                            <li><i class="fas fa-check-circle"></i> Eliminate the NMS layer through the query mechanism in transformer</li>
-                            <li><i class="fas fa-check-circle"></i> Achieve significantly faster inference speed</li>
-                        </ul>
-                    </div>
-
-                    <div class="image-container architecture-image">
-                        <img src="image/Yolov9_detrdecoder.png" 
-                             alt="YOLOv9 DETR Decoder Architecture" 
-                             class="section-image">
                     </div>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- Result Section -->
-            <section id="result" class="section">
+        <section id="dataset" class="content-section">
+            <div class="section-glass">
+                <h2 class="section-title">Datasets</h2>
+                <div class="section-content">
+                    <div class="dataset-cards">
+                        <div class="dataset-glass">
+                            <h3 class="dataset-title">COCO Dataset</h3>
+                            COCO 2017 is used as the foundational pretrained dataset, providing high diversity in scenes, poses, and lighting conditions, which enables the model to learn general visual representations, accelerates convergence, and improves generalization when fine-tuned for downstream specialized tasks.
+                            <div class="media-container">
+                                <img src="image/coco.png" class="media-image">
+                            </div>
+                        </div>
+                        <h3 class="dataset-title">CrowdHuman Dataset</h3>
+                        CrowdHuman serves as a specialized dataset for human detection, accurately reflecting real-world conditions with high crowd density and severe occlusion; however, the raw data requires manual refinement and re-annotation to ensure precise bounding boxes for regions such as the head and body.
+                        <div class="dataset-glass">
+                            <h3 class="dataset-title">CrowdHuman dataset before label editing</h3>
+                            <div class="media-container">
+                                <img src="image/human_ori.jpg" class="media-image">
+                            </div>
+                        </div>
+        
+                        <div class="dataset-glass">
+                            <h3 class="dataset-title">CrowdHuman dataset after label editing</h3>
+                            <div class="media-container">
+                                <img src="image/human_after.jpg" class="media-image">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="results" class="content-section">
+            <div class="section-glass">
                 <h2 class="section-title">Results</h2>
                 <div class="section-content">
-                    <!-- COCO Evaluation Results -->
-                    <div class="result-subsection">
-                        <h3>1. Results on COCO Dataset</h3>
-                        <p>
-                            After training on the COCO dataset, PYTHERA model only lags behind YOLOv9 by approximately 2% in mAP50, 
-                            demonstrating that performance is well maintained.
-                        </p>
-                        <div class="image-container">
-                            <img src="image/Eval_on_coco_dataset.png" 
-                                 alt="Evaluation on COCO dataset" 
-                                 class="section-image">
+                    <div class="result-group">
+                        <h3 class="subsection-title">Results on COCO Dataset</h3>
+                        <div class="media-container">
+                            <div class="glass-table-container">
+                                <table class="glass-table">
+                                    <thead>
+                                        <tr><th>Model</th><th>Test Size</th><th>Precision</th><th>mAP@50</th><th>mAP@75</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>YOLOv9</td><td>640</td><td>0.53</td><td>0.70</td><td>0.57</td></tr>
+                                        <tr class="highlight-row">
+                                            <td>Pythera Detection <span class="accent-star">(*)</span></td>
+                                            <td>640</td>
+                                            <td class="metric-accent">0.51</td><td class="metric-accent">0.68</td><td class="metric-accent">0.55</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            The pretrained base weight result is 2% lower than YOLOv9, but this comes at the cost of very high computational expenses in the hardware.
                         </div>
                     </div>
 
-                    <!-- Human Crowded Dataset Results -->
-                    <div class="result-subsection">
-                        <h3>2. Results on Human Crowded Dataset</h3>
-                        <p>
-                            Comparing PYTHERA Detection with YOLOv9, YOLO-DETR, and YOLOS on the Human Crowded dataset:
-                        </p>
-                        <div class="image-container">
-                            <img src="image/pythera_yolov9_detr_yolos_result.png" 
-                                 alt="Pythera YOLOv9 DETR YOLOS Results" 
-                                 class="section-image">
-                        </div>
-                        <div class="result-highlights">
-                            <div class="highlight-box success">
-                                <strong>Results:</strong> PYTHERA Detection (YOLOv9 + DETR) completely outperforms YOLOS and DETR. 
-                                Compared to YOLOv9, it only lags behind by approximately ~1%.
+                    <div class="result-group">
+                        <h3 class="subsection-title">Results on CrowdHuman Dataset</h3>
+                        <div class="metric-card">
+                        <div class="media-container">
+                            <div class="glass-table-container">
+                                <table class="glass-table">
+                                    <thead>
+                                        <tr><th>Model</th><th>Precision</th><th>Recall</th><th>mAP@50</th><th>mAP@50-95</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>YOLOv9</td><td>0.536</td><td>0.511</td><td>0.563</td><td>0.407</td></tr>
+                                        <tr class="highlight-row">
+                                            <td>Pythera Detection <span class="accent-star">(*)</span></td>
+                                            <td class="metric-accent">0.514</td><td class="metric-accent">0.557</td><td class="metric-accent">0.557</td><td class="metric-accent">0.394</td>
+                                        </tr>
+                                        <tr><td>YOLO-DETR</td><td>0.448</td><td>0.426</td><td>0.406</td><td>0.256</td></tr>
+                                        <tr><td>YOLOS</td><td>0.362</td><td>0.333</td><td>0.338</td><td>0.201</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
+                        Although the pretrained base weight was 2% lower, when finetuned with CrowdHuman, the result was only <strong>0.6%</strong> lower at the mAP@50 metric compared to YOLOv9. For other models such as YOLO-DETR and YOLOS, Pythera Detection's results were completely superior.
                     </div>
+                    
 
-                    <!-- Hardware and Latency Analysis -->
-                    <div class="result-subsection">
-                        <h3>3. Hardware Specifications and Latency Analysis</h3>
-                        <p>
-                            Hardware specifications for training and inference of YOLOv9, YOLO-DEYO (PYTHERA Detection), YOLOS, and YOLO-DETR:
-                        </p>
-                        <div class="image-container">
-                            <img src="image/Computing_device.png" 
-                                 alt="Computing device specifications" 
-                                 class="section-image">
-                        </div>
-
-                        <p style="margin-top: 30px;">
-                            Latency results (ms) when inferencing on the same device for all 4 models:
-                        </p>
-                        <div class="image-container">
-                            <img src="image/cpu_gpu_compare.png" 
-                                 alt="CPU and GPU latency comparison" 
-                                 class="section-image">
-                        </div>
-
-                        <div class="result-highlights">
-                            <div class="highlight-box success">
-                                <strong>Key Findings:</strong> YOLO-DEYO (PYTHERA Detection) demonstrates superior inference speed 
-                                on both CUDA and CPU. On CUDA, it achieves 22% faster inference than YOLOv9, 56% faster than YOLOS, 
-                                and 82% faster than YOLO-DETR. On CPU, the improvements are even more significant with 57% faster 
-                                than YOLOv9, 82% faster than YOLOS, and 88% faster than YOLO-DETR.
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Performance Analysis -->
-                    <div class="result-subsection">
-                        <h3>4. Performance Analysis (Throughput Analysis)</h3>
-                        <p>
-                            Measuring inference speed across different models shows:
-                        </p>
-                        <div class="performance-comparison">
-                            <div class="performance-card best">
-                                <div class="performance-header">
-                                    <i class="fas fa-trophy"></i>
-                                    <h4>PYTHERA Detection</h4>
-                                </div>
-                                <div class="performance-value">~80</div>
-                                <div class="performance-unit">throughput</div>
-                            </div>
-
-                            <div class="performance-card">
-                                <div class="performance-header">
-                                    <i class="fas fa-chart-line"></i>
-                                    <h4>YOLOv12</h4>
-                                </div>
-                                <div class="performance-value">~55</div>
-                                <div class="performance-unit">throughput</div>
-                            </div>
-
-                            <div class="performance-card">
-                                <div class="performance-header">
-                                    <i class="fas fa-chart-bar"></i>
-                                    <h4>YOLOv9</h4>
-                                </div>
-                                <div class="performance-value">~40</div>
-                                <div class="performance-unit">throughput</div>
+                    <div class="result-group">
+                        <h3 class="subsection-title">Hardware Specifications and Latency Analysis</h3>
+                        <div class="metric-card">
+                        <div class="media-container">
+                            <div class="glass-table-container">
+                                <table class="glass-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Model</th>
+                                            <th>Train</th>
+                                            <th>Val</th>
+                                            <th>Inference (GPU)</th>
+                                            <th>Inference (CPU)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>YOLOv9</td>
+                                            <td>RTX 3090</td>
+                                            <td>RTX 3090</td>
+                                            <td>RTX 2080 Ti</td>
+                                            <td>Ryzen Threadripper 2920X</td>
+                                        </tr>
+                                        <tr class="highlight-row">
+                                            <td>Pythera Detection <span class="accent-star">(*)</span></td>
+                                            <td class="metric-accent">Tesla T4</td>
+                                            <td class="metric-accent">RTX 2080 Ti</td>
+                                            <td class="metric-accent">RTX 2080 Ti</td>
+                                            <td class="metric-accent">Ryzen Threadripper 2920X</td>
+                                        </tr>
+                                        <tr>
+                                            <td>YOLO-DETR</td>
+                                            <td>2x RTX 4090</td>
+                                            <td>2x RTX 4090</td>
+                                            <td>RTX 2080 Ti</td>
+                                            <td>Ryzen Threadripper 2920X</td>
+                                        </tr>
+                                        <tr>
+                                            <td>YOLOS</td>
+                                            <td>2x RTX 4090</td>
+                                            <td>2x RTX 4090</td>
+                                            <td>RTX 2080 Ti</td>
+                                            <td>Ryzen Threadripper 2920X</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         
-                        <div class="image-container">
-                            <img src="image/eval_pythera_vs_yolov9_12.png" 
-                                 alt="Performance Analysis: Pythera vs YOLOv9 and YOLOv12" 
-                                 class="section-image">
+                        <h3 class="subsection-title">Latency results (ms) comparison</h3>
+                        <div class="chart-layout">
+                            <div class="chart-wrapper">
+                                <h4 class="chart-title">Computational Latency on CUDA</h4>
+                                <div class="chart-box" id="cuda-chart">
+                                    <div class="x-axis-labels"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+                                </div>
+                                <div class="axis-unit">ms</div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <h4 class="chart-title">Computational Latency on CPU</h4>
+                                <div class="chart-box" id="cpu-chart">
+                                    <div class="x-axis-labels"><span>0</span><span>400</span><span>800</span><span>1200</span><span>1400</span></div>
+                                </div>
+                                <div class="axis-unit">ms</div>
+                            </div>
                         </div>
 
-                        <div class="result-highlights">
-                            <div class="highlight-box success">
-                                <strong>Conclusion:</strong> The PYTHERA model has achieved the initial goal - maintaining 
-                                high performance (only ~1-2% behind YOLOv9) while achieving extremely good inference speed 
-                                (~45% higher than YOLOv12 and ~100% higher than YOLOv9).
+                        <div class="insight-box">
+                            <strong>Key Findings:</strong> Pythera Detection achieves <strong>22% faster</strong> inference on CUDA and <strong>57% faster</strong> on CPU compared to YOLOv9, while also significantly outperforming <strong>YOLOS</strong> and <strong>YOLO-DETR</strong> across all evaluated metrics.
+                        </div>
+                    </div>
+
+                    <div class="result-group">
+                        <h3 class="subsection-title">Throughput Analysis</h3>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-icon"><i class="fas fa-trophy"></i></div>
+                                <h4>Pythera</h4><div class="metric-value">~80</div><div class="metric-label">throughput</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon"><i class="fas fa-chart-line"></i></div>
+                                <h4>YOLOv12</h4><div class="metric-value">~55</div><div class="metric-label">throughput</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon"><i class="fas fa-chart-bar"></i></div>
+                                <h4>YOLOv9</h4><div class="metric-value">~40</div><div class="metric-label">throughput</div>
+                            </div>
+                        </div>
+                        <div class="media-container"><img src="image/eval_pythera_vs_yolov9_12.png" class="media-image"></div>
+                        <p class="image-caption">
+                            Performance benchmark results measured using perf_analyzer, comparing Pythera Detection, YOLOv9, and YOLOv12 across different batch sizes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="demo" class="content-section">
+            <div class="section-glass">
+                <h2 class="section-title">Video Demo</h2>
+                <div class="section-content">
+                    <div class="video-cards">
+                        <div class="video-glass">
+                            <h3 class="video-heading">Inference Pythera Detection</h3>
+                            <div class="video-frame">
+                                <iframe src="https://www.youtube.com/embed/kOgs10vykGg" title="Inference" frameborder="0" allowfullscreen></iframe>
+                            </div>
+                        </div>
+                        <div class="video-glass">
+                            <h3 class="video-heading">FPS Benchmark</h3>
+                            <div class="video-frame">
+                                <iframe src="https://www.youtube.com/embed/hH8xqEaKgmM" title="Benchmark" frameborder="0" allowfullscreen></iframe>
                             </div>
                         </div>
                     </div>
                 </div>
-            </section>
-        </div>
-    </main>
+            </div>
+        </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <p>&copy; 2024 PYTHERA Detection Project. All rights reserved.</p>
-        </div>
-    </footer>
+        <footer class="footer-section">
+            <div class="footer-glass">
+                <p>&copy; 2024 Pythera Detection Project. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
 
-    <!-- Smooth Scroll Script -->
+    <div class="tooltip-custom" id="chart-tooltip"></div>
+
     <script>
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
+        /* [Phần Script giữ nguyên hoàn toàn] */
+        const cudaData = [
+            { model: 'YOLOv9', value: 21.3 },
+            { model: 'Pythera Detection', value: 16.5, highlight: true },
+            { model: 'YOLOS', value: 37.6 },
+            { model: 'YOLO-DETR', value: 91.3 }
+        ];
+        const cpuData = [
+            { model: 'YOLOv9', value: 348.6 },
+            { model: 'Pythera Detection', value: 148.4, highlight: true },
+            { model: 'YOLOS', value: 808.3 },
+            { model: 'YOLO-DETR', value: 1232 }
+        ];
+
+        function renderChart(containerId, data, maxVal) {
+            const container = document.getElementById(containerId);
+            const tooltip = document.getElementById('chart-tooltip');
+
+            data.forEach(item => {
+                const group = document.createElement('div');
+                group.className = 'bar-group';
+
+                const label = document.createElement('div');
+                label.className = 'y-label';
+                label.textContent = item.model;
+
+                const barContainer = document.createElement('div');
+                barContainer.className = 'bar-container';
+
+                const bar = document.createElement('div');
+                bar.className = `bar ${item.highlight ? 'highlight' : ''}`;
+                const width = (item.value / maxVal) * 100;
+                
+                setTimeout(() => { bar.style.width = width + '%'; }, 500);
+                bar.innerHTML = `<span>${item.value}</span>`;
+
+                barContainer.onmousemove = (e) => {
+                    tooltip.style.opacity = '1';
+                    tooltip.innerHTML = `<strong>${item.model}</strong>: ${item.value} ms`;
+                    tooltip.style.left = e.pageX + 15 + 'px';
+                    tooltip.style.top = e.pageY - 40 + 'px';
+                };
+                barContainer.onmouseleave = () => tooltip.style.opacity = '0';
+
+                barContainer.appendChild(bar);
+                group.appendChild(label);
+                group.appendChild(barContainer);
+                container.insertBefore(group, container.firstChild);
             });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderChart('cuda-chart', cudaData, 100);
+            renderChart('cpu-chart', cpuData, 1400);
         });
+
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.onresize = resize; resize();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 1;
+                this.speedX = Math.random() * 0.4 - 0.2;
+                this.speedY = Math.random() * 0.4 - 0.2;
+                this.opacity = Math.random() * 0.5 + 0.2;
+            }
+            update() {
+                this.x += this.speedX; this.y += this.speedY;
+                if(this.x > canvas.width) this.x = 0; if(this.x < 0) this.x = canvas.width;
+                if(this.y > canvas.height) this.y = 0; if(this.y < 0) this.y = canvas.height;
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+            }
+        }
+        for(let i=0; i<60; i++) particles.push(new Particle());
+        function animate() {
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        const navItems = document.querySelectorAll('.nav-item');
+        const sections = document.querySelectorAll('section');
+        window.onscroll = () => {
+            let current = "";
+            sections.forEach(s => {
+                if (pageYOffset >= s.offsetTop - 200) current = s.getAttribute('id');
+            });
+            navItems.forEach(n => {
+                n.classList.remove('active');
+                if (n.getAttribute('href').includes(current)) n.classList.add('active');
+            });
+        };
     </script>
 </body>
 </html>
-
